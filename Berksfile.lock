@@ -1,0 +1,16 @@
+DEPENDENCIES
+  logstash-forwarder
+    path: .
+    metadata: true
+
+GRAPH
+  build-essential (2.0.4)
+  logstash-forwarder (0.0.3)
+    runit (>= 0.0.0)
+  runit (1.5.10)
+    build-essential (>= 0.0.0)
+    yum (~> 3.0)
+    yum-epel (>= 0.0.0)
+  yum (3.2.2)
+  yum-epel (0.3.6)
+    yum (~> 3.0)

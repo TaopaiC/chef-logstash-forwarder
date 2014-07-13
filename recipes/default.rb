@@ -1,6 +1,6 @@
 include_recipe "runit"
 
-if node["logstash-forwarder"]["ssl_ca_certificate_path"].empty?
+if node["logstash-forwarder"]["ssl_ca_certificate_path"].empty? && !node['logstash-forwarder']['ssl_data_bag_name']
   Chef::Application.fatal!("You must have the CA certificate installed which signed the server's certificate")
 end
 
@@ -52,6 +52,38 @@ when "rhel"
     provider Chef::Provider::Package::Rpm
     action :install
   end
+end
+
+if node['logstash-forwarder']['ssl_data_bag_name']
+  directory "#{node["logstash-forwarder"]["dir"]}/ssl" do
+    mode "0750"
+    owner node["logstash-forwarder"]["user"]
+    group node["logstash-forwarder"]["group"]
+    recursive true
+  end
+
+  file "#{node['logstash-forwarder']['dir']}/ssl/ssl-cert-logstash-forwarder.crt" do
+    owner node['logstash-forwarder']['user']
+    group node['logstash-forwarder']['group']
+    content data_bag_item('logstash-forwarder', node['logstash-forwarder']['ssl_data_bag_name'])['ssl_certificate']
+    action :create
+  end.run_action(:create)
+
+  file "#{node['logstash-forwarder']['dir']}/ssl/ssl-cert-logstash-forwarder.key" do
+    owner node['logstash-forwarder']['user']
+    group node['logstash-forwarder']['group']
+    content data_bag_item('logstash-forwarder', node['logstash-forwarder']['ssl_data_bag_name'])['ssl_key']
+    action :create
+  end
+
+  ruby_block "ssl-certificate-setup" do
+    block do
+      node.set["logstash-forwarder"]["ssl_key_path"]                  = "#{node["logstash-forwarder"]["dir"]}/ssl/ssl-cert-logstash-forwarder.key"
+      node.set["logstash-forwarder"]["ssl_certificate_path"]          = "#{node["logstash-forwarder"]["dir"]}/ssl/ssl-cert-logstash-forwarder.crt"
+      node.set["logstash-forwarder"]["ssl_ca_certificate_path"]       = "#{node["logstash-forwarder"]["dir"]}/ssl/ssl-cert-logstash-forwarder.crt"
+    end
+    action :nothing
+  end.run_action(:create)
 end
 
 directory node["logstash-forwarder"]["log_dir"] do
