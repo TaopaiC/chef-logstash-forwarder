@@ -6,7 +6,7 @@ version           "0.0.3"
 recipe            "logstash-forwarder", "Installs and configures Lumberjack"
 name              "logstash-forwarder"
 
-%w{ logrotate }.each do |d|
+%w{ runit }.each do |d|
   depends d
 end
 

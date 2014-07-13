@@ -1,4 +1,4 @@
-include_recipe "logrotate"
+include_recipe "runit"
 
 if node["logstash-forwarder"]["ssl_ca_certificate_path"].empty?
   Chef::Application.fatal!("You must have the CA certificate installed which signed the server's certificate")
@@ -42,6 +42,16 @@ when "debian"
     provider Chef::Provider::Package::Dpkg
     action :install
   end
+when "rhel"
+  cookbook_file "#{Chef::Config[:file_cache_path]}/logstash-forwarder_x86_64.rpm" do
+    source "logstash-forwarder-#{node["logstash-forwarder"]["version"]}.x86_64.rpm"
+  end
+
+  package "logstash-forwarder" do
+    source "#{Chef::Config[:file_cache_path]}/logstash-forwarder_x86_64.rpm"
+    provider Chef::Provider::Package::Rpm
+    action :install
+  end
 end
 
 directory node["logstash-forwarder"]["log_dir"] do
@@ -49,14 +59,6 @@ directory node["logstash-forwarder"]["log_dir"] do
   owner node["logstash-forwarder"]["user"]
   group node["logstash-forwarder"]["group"]
   recursive true
-end
-
-logrotate_app "logstash-forwarder" do
-  cookbook "logrotate"
-  path "#{node["logstash-forwarder"]["log_dir"]}/*.log"
-  frequency "daily"
-  rotate 7
-  create "644 root root"
 end
 
 template node["logstash-forwarder"]["config_file"] do
@@ -74,23 +76,15 @@ template node["logstash-forwarder"]["config_file"] do
   notifies :restart, "service[logstash-forwarder]"
 end
 
-case node["platform_family"]
-when "debian"
+runit_service 'logstash-forwarder' do
+  owner node["logstash-forwarder"]["user"]
+  group node["logstash-forwarder"]["group"]
+  options(
+    :dir              => node["logstash-forwarder"]["dir"],
+    :config_file      => node["logstash-forwarder"]["config_file"]
+  )
+end
 
-  template "/etc/init/logstash-forwarder.conf" do
-    mode "0644"
-    source "logstash-forwarder.conf.erb"
-    variables(
-      :dir              => node["logstash-forwarder"]["dir"],
-      :user             => node["logstash-forwarder"]["user"],
-      :log_dir          => node["logstash-forwarder"]["log_dir"],
-      :config_file      => node["logstash-forwarder"]["config_file"]
-    )
-    notifies :restart, "service[logstash-forwarder]"
-  end
-
-  service "logstash-forwarder" do
-    provider Chef::Provider::Service::Upstart
-    action [ :enable, :start ]
-  end
+service "logstash-forwarder" do
+  action :start
 end
