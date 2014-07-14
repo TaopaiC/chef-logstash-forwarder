@@ -67,7 +67,7 @@ if node['logstash-forwarder']['ssl_data_bag_name']
     group node['logstash-forwarder']['group']
     content data_bag_item('logstash-forwarder', node['logstash-forwarder']['ssl_data_bag_name'])['ssl_certificate']
     action :create
-  end.run_action(:create)
+  end
 
   file "#{node['logstash-forwarder']['dir']}/ssl/ssl-cert-logstash-forwarder.key" do
     owner node['logstash-forwarder']['user']
